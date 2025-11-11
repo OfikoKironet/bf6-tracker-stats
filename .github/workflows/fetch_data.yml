@@ -1,60 +1,59 @@
-name: Fetch BF6 Stats and Update
+name: Fetch BF6 Stats via Scraping
 
 on:
   # Umožňuje spustit akci manuálně
   workflow_dispatch: 
-  # Spouští se automaticky každý den v 01:00 UTC
   schedule:
-    - cron: '0 1 * * *' 
+    - cron: '0 2 * * *' # Běží každý den v 02:00 UTC
 
 jobs:
-  fetch-data:
+  scrape-data:
     runs-on: ubuntu-latest
     
-    # 🚨 Důležité: Nastavení oprávnění pro commitování dat zpět do repozitáře
     permissions:
-      contents: write 
+      contents: write # Povoluje commit zpět do repozitáře
       
     steps:
       - name: Checkout kód
         uses: actions/checkout@v4
-
+      
       - name: Vytvoření složky pro data
         run: mkdir -p data
 
-      - name: Stáhni JSON data z Tracker.gg
-        # 1. Klíč je bezpečně předán jako proměnná prostředí (API_KEY)
-        env:
-          API_KEY: ${{ secrets.TRN_API_KEY }} 
+      - name: Stáhni HTML obsah stránky (Scraping)
+        id: scrape
         run: |
-          # Konfigurace pro Tracker.gg API
-          PLAYER_ID="3000691765"
-          URL="https://public-api.tracker.gg/v2/bf6/standard/profile/steam/${PLAYER_ID}"
-          OUTPUT_FILE="data/bf6_stats.json"
+          URL="https://tracker.gg/bf6/profile/steam/3000691765/overview"
+          HTML_OUTPUT="data/bf6_page.html"
           
-          echo "Stahuji data pro Steam ID ${PLAYER_ID}..."
+          echo "Stahuji veřejnou HTML stránku pro Steam ID 3000691765..."
           
-          # 2. Curl příkaz: Zajišťuje, že hlavička TRN-Api-Key je správně nastavena
-          # Používáme proměnnou prostředí $API_KEY
-          curl -s -X GET \
-            -H "TRN-Api-Key: $API_KEY" \
-            -H "Accept: application/json" \
-            "$URL" \
-            --compressed \
-            --output "$OUTPUT_FILE"
+          # Simulace prohlížeče pomocí User-Agent
+          curl -s -L -A "Mozilla/5.0 (GitHubActions)" "$URL" --output "$HTML_OUTPUT"
           
-          # Kontrola, zda stažení proběhlo a soubor existuje
-          if [ -f "$OUTPUT_FILE" ]; then
-              echo "Data stažena do $OUTPUT_FILE"
+          if [ -f "$HTML_OUTPUT" ]; then
+              echo "HTML staženo, pokračuji extrakcí dat."
+              
+              # Tady musíme najít data (jsou v JS proměnné)
+              # Použijeme grep a sed k extrakci velkého JSON bloku z HTML
+              JSON_DATA=$(grep -oP 'window.__INITIAL_STATE__\s*=\s*\K[^{]*\{.*\}' "$HTML_OUTPUT" | head -n 1)
+              
+              if [ -z "$JSON_DATA" ]; then
+                  echo "❌ CHYBA: Nepodařilo se najít iniciační data v HTML (Web scraping selhal)."
+                  exit 1
+              fi
+              
+              # Uložíme extrahovaná data do finálního JSON souboru
+              echo "$JSON_DATA" > "data/bf6_stats.json"
+              echo "Data úspěšně extrahována a uložena."
           else
-              echo "❌ CHYBA: Soubor $OUTPUT_FILE nebyl vytvořen. Zkontroluj logy pro chyby API."
-              exit 1 # Ukončí akci, pokud se soubor nestáhl
+              echo "❌ CHYBA: Stránka nebyla stažena."
+              exit 1
           fi
 
       - name: Commit a Push JSON souboru
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           file_pattern: 'data/bf6_stats.json' 
-          commit_message: 'Auto-update: BF6 Stats from Tracker.gg API'
-          # Nastavujeme správného autora pro push
+          commit_message: 'Auto-update: BF6 Stats via Web Scraping'
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
