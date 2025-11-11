@@ -11,7 +11,7 @@ jobs:
   fetch-data:
     runs-on: ubuntu-latest
     
-    # 🌟 Klíčové: Umožňuje commit a push zpět do repozitáře.
+    # 🚨 Důležité: Nastavení oprávnění pro commitování dat zpět do repozitáře
     permissions:
       contents: write 
       
@@ -22,16 +22,20 @@ jobs:
       - name: Vytvoření složky pro data
         run: mkdir -p data
 
-      - name: Stáhni JSON data
+      - name: Stáhni JSON data z Tracker.gg
+        # 1. Klíč je bezpečně předán jako proměnná prostředí (API_KEY)
         env:
-          API_KEY: ${{ secrets.TRN_API_KEY }} # Získá tajný klíč
+          API_KEY: ${{ secrets.TRN_API_KEY }} 
         run: |
-          URL="https://public-api.tracker.gg/v2/bf6/standard/profile/steam/3000691765"
+          # Konfigurace pro Tracker.gg API
+          PLAYER_ID="3000691765"
+          URL="https://public-api.tracker.gg/v2/bf6/standard/profile/steam/${PLAYER_ID}"
           OUTPUT_FILE="data/bf6_stats.json"
           
-          echo "Stahuji data..."
+          echo "Stahuji data pro Steam ID ${PLAYER_ID}..."
           
-          # Použije se klíč z environment
+          # 2. Curl příkaz: Zajišťuje, že hlavička TRN-Api-Key je správně nastavena
+          # Používáme proměnnou prostředí $API_KEY
           curl -s -X GET \
             -H "TRN-Api-Key: $API_KEY" \
             -H "Accept: application/json" \
@@ -39,12 +43,18 @@ jobs:
             --compressed \
             --output "$OUTPUT_FILE"
           
-          echo "Data stažena do $OUTPUT_FILE"
+          # Kontrola, zda stažení proběhlo a soubor existuje
+          if [ -f "$OUTPUT_FILE" ]; then
+              echo "Data stažena do $OUTPUT_FILE"
+          else
+              echo "❌ CHYBA: Soubor $OUTPUT_FILE nebyl vytvořen. Zkontroluj logy pro chyby API."
+              exit 1 # Ukončí akci, pokud se soubor nestáhl
+          fi
 
       - name: Commit a Push JSON souboru
-        # Tato akce automaticky commitne a nahraje změny
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          file_pattern: 'data/bf6_stats.json' # Uloží data do složky data/
+          file_pattern: 'data/bf6_stats.json' 
           commit_message: 'Auto-update: BF6 Stats from Tracker.gg API'
+          # Nastavujeme správného autora pro push
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
