@@ -1,0 +1,50 @@
+name: Fetch BF6 Stats and Update
+
+on:
+  # Umožňuje spustit akci manuálně
+  workflow_dispatch: 
+  # Spouští se automaticky každý den v 01:00 UTC
+  schedule:
+    - cron: '0 1 * * *' 
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    
+    # 🌟 Klíčové: Umožňuje commit a push zpět do repozitáře.
+    permissions:
+      contents: write 
+      
+    steps:
+      - name: Checkout kód
+        uses: actions/checkout@v4
+
+      - name: Vytvoření složky pro data
+        run: mkdir -p data
+
+      - name: Stáhni JSON data
+        env:
+          API_KEY: ${{ secrets.TRN_API_KEY }} # Získá tajný klíč
+        run: |
+          URL="https://public-api.tracker.gg/v2/bf6/standard/profile/steam/3000691765"
+          OUTPUT_FILE="data/bf6_stats.json"
+          
+          echo "Stahuji data..."
+          
+          # Použije se klíč z environment
+          curl -s -X GET \
+            -H "TRN-Api-Key: $API_KEY" \
+            -H "Accept: application/json" \
+            "$URL" \
+            --compressed \
+            --output "$OUTPUT_FILE"
+          
+          echo "Data stažena do $OUTPUT_FILE"
+
+      - name: Commit a Push JSON souboru
+        # Tato akce automaticky commitne a nahraje změny
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: 'data/bf6_stats.json' # Uloží data do složky data/
+          commit_message: 'Auto-update: BF6 Stats from Tracker.gg API'
+          commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
