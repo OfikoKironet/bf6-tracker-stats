@@ -1,7 +1,9 @@
-name: Fetch BF6 Stats (API)
+name: Fetch BF6 Stats (API - Final URL)
 
 on:
+  # Umožňuje spustit akci manuálně
   workflow_dispatch: 
+  # Spouští se automaticky každý den v 01:00 UTC
   schedule:
     - cron: '0 1 * * *' 
 
@@ -20,19 +22,18 @@ jobs:
         run: mkdir -p data
 
       - name: Stáhni JSON data z Tracker.gg API
-        # Klíč je bezpečně předán jako proměnná prostředí (API_KEY)
+        # Předpoklad: NOVÝ, PLATNÝ klíč je uložen v Secrets
         env:
           API_KEY: ${{ secrets.TRN_API_KEY }} 
         run: |
-          # Konfigurace pro Tracker.gg API
+          # 🚨 ZDE JE NOVÁ, OPRAVENÁ URL ADRESA:
+          URL="https://api.tracker.gg/api/v2/bf6/standard/profile/steam/3000691765"
           PLAYER_ID="3000691765"
-          URL="https://public-api.tracker.gg/v2/bf6/standard/profile/steam/${PLAYER_ID}"
           OUTPUT_FILE="data/bf6_stats.json"
           
-          echo "Stahuji data pro Steam ID ${PLAYER_ID}..."
+          echo "Stahuji data z nové URL pro Steam ID ${PLAYER_ID}..."
           
-          # Curl příkaz: Zajišťuje, že hlavička TRN-Api-Key je správně nastavena
-          # Používá proměnnou prostředí $API_KEY
+          # Curl příkaz s API klíčem v hlavičce
           curl -s -X GET \
             -H "TRN-Api-Key: $API_KEY" \
             -H "Accept: application/json" \
@@ -40,11 +41,11 @@ jobs:
             --compressed \
             --output "$OUTPUT_FILE"
           
-          # Kontrola, zda stažení proběhlo a soubor existuje
+          # Kontrola, zda stažení proběhlo a soubor není prázdný
           if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-              echo "Data stažena do $OUTPUT_FILE"
+              echo "✅ Data úspěšně stažena do $OUTPUT_FILE"
           else
-              echo "❌ CHYBA: Soubor $OUTPUT_FILE nebyl vytvořen nebo je prázdný. Zkontroluj logy."
+              echo "❌ CHYBA: Stažený soubor je prázdný nebo neexistuje. (Pravděpodobně stále neplatný klíč nebo chyba API)."
               exit 1 
           fi
 
@@ -52,5 +53,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           file_pattern: 'data/bf6_stats.json' 
-          commit_message: 'Auto-update: BF6 Stats from Tracker.gg API'
+          commit_message: 'Auto-update: BF6 Stats with correct API URL'
           commit_author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
