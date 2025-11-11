@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Battlefield 6 Statistiky (Automaticky Aktualizováno)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        pre { background: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; }
+        .container { max-width: 800px; margin: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Statistiky BF6 pro Steam ID 3000691765</h1>
+        <p>Data stažena pomocí <a href="https://github.com/vasesk/actions" target="_blank">GitHub Actions</a> (Aktualizuje se denně).</p>
+        
+        <h2>JSON Data:</h2>
+        <pre id="stats-output">Načítám...</pre>
+    </div>
+
+    <script>
+        // Cesta k souboru, který generuje GitHub Action
+        const DATA_PATH = 'data/bf6_stats.json'; 
+
+        fetch(DATA_PATH)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Chyba: JSON soubor nebyl nalezen nebo je nedostupný.");
+                }
+                return response.json(); // Převede lokální soubor na JSON objekt
+            })
+            .then(data => {
+                // Zobrazí formátovaný JSON výstup
+                document.getElementById('stats-output').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('stats-output').textContent = `Nastala chyba: ${error.message}. Zkuste akci Actions spustit manuálně.`;
+                console.error('Chyba při načítání lokálních dat:', error);
+            });
+    </script>
+</body>
+</html>
